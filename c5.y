@@ -36,7 +36,7 @@ int sym[26];                    /* symbol table */
 %token <sIndex> CHAR
 %token <string> STRING
 %token FOR WHILE IF BREAK CONT DO GETI GETC GETS 
-%token PUTI PUTI_ PUTC PUTS PUTS_ ARRAY GETARRAY ASSIGNARRAY
+%token PUTI PUTI_ PUTC PUTS PUTS_ ARRAY INITARRAY GETARRAY ASSIGNARRAY
 %nonassoc IFX
 %nonassoc ELSE
 
@@ -66,6 +66,7 @@ stmt:
         | BREAK ';'                                 { $$ = opr(BREAK, 0);}
         | CONT ';'                                  { $$ = opr(CONT, 0);}
         | ARRAY VARIABLE '['INTEGER']' ';'          { $$ = opr(ARRAY, 2, id($2), conInt($4));}
+        | ARRAY VARIABLE '['INTEGER']' '=' INTEGER ';'  { $$ = opr(INITARRAY, 3, id($2), conInt($4), conInt($7));}
         | VARIABLE '['expr']' '=' expr';'           { $$ = opr(ASSIGNARRAY, 3, id($1), $3, $6);}
         | PUTI '(' expr ')'';'                      { $$ = opr(PUTI, 1, $3); }
         | PUTI_ '(' expr ')'';'                     { $$ = opr(PUTI_, 1, $3); }

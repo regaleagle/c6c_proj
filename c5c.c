@@ -75,6 +75,20 @@ int ex(nodeType *p, int breakTo, int contTo) {
                     varCounter += p->opr.op[1]->conInt.value;}
                     // printf("%d\n", varCounter);
                     break;
+                case INITARRAY:
+                    {int index2 = varCounter;
+                    addVar(p->opr.op[0]->id.i);
+                    varCounter += p->opr.op[1]->conInt.value;
+                    int valueInt = p->opr.op[2]->conInt.value;
+                    int incr = varCounter;
+                    sprintf(inlineTemp, "\tpush\t%d\n\tpop\tin\nL%03d:\n\tpush\tin\n\tpush\t1\n\tsub\n\tpop\tin\n\tpush\t%d\n\tpop\tsb[in]\n\tpush\tin\n\tpush\t%d\n", incr, lbl1 = lbl++, valueInt,index2);
+                    appendString(inlineTemp);
+
+                    sprintf(inlineTemp, "\tcompgt\n\tj1\tL%03d\n", lbl1);
+                    appendString(inlineTemp);
+
+                    }
+                    break;
                 case GETARRAY:
                     ex(p->opr.op[1], breakArg, contArg);
                     int arrAdd = findVar(p->opr.op[0]->id.i);

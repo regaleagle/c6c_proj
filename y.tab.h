@@ -58,17 +58,18 @@
      PUTS = 274,
      PUTS_ = 275,
      ARRAY = 276,
-     GETARRAY = 277,
-     ASSIGNARRAY = 278,
-     IFX = 279,
-     ELSE = 280,
-     OR = 281,
-     AND = 282,
-     NE = 283,
-     EQ = 284,
-     LE = 285,
-     GE = 286,
-     UMINUS = 287
+     INITARRAY = 277,
+     GETARRAY = 278,
+     ASSIGNARRAY = 279,
+     IFX = 280,
+     ELSE = 281,
+     OR = 282,
+     AND = 283,
+     NE = 284,
+     EQ = 285,
+     LE = 286,
+     GE = 287,
+     UMINUS = 288
    };
 #endif
 /* Tokens.  */
@@ -91,17 +92,18 @@
 #define PUTS 274
 #define PUTS_ 275
 #define ARRAY 276
-#define GETARRAY 277
-#define ASSIGNARRAY 278
-#define IFX 279
-#define ELSE 280
-#define OR 281
-#define AND 282
-#define NE 283
-#define EQ 284
-#define LE 285
-#define GE 286
-#define UMINUS 287
+#define INITARRAY 277
+#define GETARRAY 278
+#define ASSIGNARRAY 279
+#define IFX 280
+#define ELSE 281
+#define OR 282
+#define AND 283
+#define NE 284
+#define EQ 285
+#define LE 286
+#define GE 287
+#define UMINUS 288
 
 
 
@@ -117,7 +119,7 @@ typedef union YYSTYPE
     nodeType *nPtr;             /* node pointer */
 }
 /* Line 1529 of yacc.c.  */
-#line 121 "y.tab.h"
+#line 123 "y.tab.h"
 	YYSTYPE;
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
 # define YYSTYPE_IS_DECLARED 1
