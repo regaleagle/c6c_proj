@@ -1,4 +1,4 @@
-typedef enum { typeConInt, typeConChar, typeConStr, typeId, typeOpr } nodeEnum;
+typedef enum { typeConInt, typeConChar, typeConStr, typeId, typeFuncId, typeOpr } nodeEnum;
 
 /* constants */
 typedef struct {
@@ -18,6 +18,10 @@ typedef struct {
     char * i;                      /* subscript to sym array */
 } idNodeType;
 
+typedef struct {
+    char * i;                      /* subscript to sym array */
+} funcIdNodeType;
+
 /* operators */
 typedef struct {
     int oper;                   /* operator */
@@ -35,6 +39,7 @@ typedef struct nodeTypeTag {
         conCharNodeType conChar;        /* constants */
         conStrNodeType conStr;        /* constants */
         idNodeType id;          /* identifiers */
+        funcIdNodeType fid;          /* function identifiers */
         oprNodeType opr;        /* operators */
     };
 } nodeType;
@@ -44,6 +49,14 @@ struct variableList{
     // int type;  /*0 = none, 1 = int, 2 = char, 3 = String*/
     char * var;
     struct variableList * next;                  /* value of constant */
+};
+struct funcList{
+    int pos;
+    int params;
+    // int type;  /*0 = none, 1 = int, 2 = char, 3 = String*/
+    char * var;
+
+    struct funcList * next;                  /* value of constant */
 };
 
 extern int sym[26];

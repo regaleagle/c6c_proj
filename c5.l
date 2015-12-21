@@ -37,7 +37,7 @@ void yyerror(char *);
                 return INTEGER;
             }
 
-[-()<>=+*/;{}.%\[\]] {
+[-()<>=+*/;{}.%\[\],] {
                 return *yytext;
              }
 

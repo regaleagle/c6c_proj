@@ -9,6 +9,7 @@
 /* prototypes */
 nodeType *opr(int oper, int nops, ...);
 nodeType *id(char *i);
+nodeType *fid(char *i);
 nodeType *conInt(int value);
 nodeType *conChar(char value);
 nodeType *conStr(char *value);
@@ -35,10 +36,12 @@ int sym[26];                    /* symbol table */
 %token <string> VARIABLE
 %token <sIndex> CHAR
 %token <string> STRING
-%token FOR WHILE IF BREAK CONT DO GETI GETC GETS 
-%token PUTI PUTI_ PUTC PUTS PUTS_ ARRAY INITARRAY GETARRAY ASSIGNARRAY
+%token FOR WHILE IF BREAK CONT DO GETI GETC GETS FUNCNOPAR FUNC ENDFUNC PARAM CALLPARAM
+%token PUTI PUTI_ PUTC PUTS PUTS_ ARRAY INITARRAY GETARRAY ASSIGNARRAY CALL ARG
 %nonassoc IFX
 %nonassoc ELSE
+// %nonassoc CA
+// %nonassoc '{'
 
 %left AND OR
 
@@ -47,18 +50,24 @@ int sym[26];                    /* symbol table */
 %left '*' '/' '%'
 %nonassoc UMINUS
 
-%type <nPtr> stmt expr stmt_list
+
+%type <nPtr>  arglist stmt expr function stmt_list 
 
 %%
 
 program:
-        function                { printProg(); exit(0); }
+        function_list               { printProg(); exit(0); }
+        ;
+
+function_list:
+        function_list function               { ex($2); freeNode($2); }
+        |function_list stmt                   { ex($2); freeNode($2); }
+        | /*NULL*/
         ;
 
 function:
-          function stmt         { ex($2); freeNode($2); }
-        | /* NULL */
-        ;
+          VARIABLE '('')' '{'stmt_list'}'           { $$ = opr(FUNCNOPAR, 2, id($1), $5);}
+        | VARIABLE '(' arglist ')''{' stmt_list'}'   { $$ = opr(FUNC, 3, id($1), $3, $6);}
 
 stmt:
           ';'                                       { $$ = opr(';', 2, NULL, NULL); }
@@ -95,6 +104,8 @@ expr:
         | CHAR                      {  $$ = conChar($1); }
         | STRING                    {  $$ = conStr($1); }
         | VARIABLE                  {  $$ = id($1); }
+        | VARIABLE '('arglist')'   { $$ = opr(CALL, 2, fid($1), $3);}
+        | VARIABLE '('')'           { $$ = fid($1);}
         | VARIABLE '['expr']'   { $$ = opr(GETARRAY, 2, id($1), $3);}
         | '-' expr %prec UMINUS { $$ = opr(UMINUS, 1, $2); }
         | expr '+' expr         { $$ = opr('+', 2, $1, $3); }
@@ -112,6 +123,9 @@ expr:
     	| expr OR expr		    { $$ = opr(OR, 2, $1, $3); }
         | '(' expr ')'          { $$ = $2; }
         ;
+arglist:
+         expr                   { $$ = opr(ARG, 1, $1); }
+        | arglist ','expr       { $$ = opr(';', 2, $1, $3);}
 
 %%
 
@@ -177,6 +191,22 @@ nodeType *id(char *i) {
     /* copy information */
     p->type = typeId;
     p->id.i = i;
+
+    return p;
+}
+
+nodeType *fid(char *i) {
+    nodeType *p;
+    size_t nodeSize;
+
+    /* allocate node */
+    nodeSize = SIZEOF_NODETYPE + sizeof(funcIdNodeType);
+    if ((p = malloc(nodeSize)) == NULL)
+        yyerror("out of memory");
+
+    /* copy information */
+    p->type = typeFuncId;
+    p->fid.i = i;
 
     return p;
 }

@@ -8,25 +8,43 @@
 
 static int lbl;
 static bool noVar = true;
+static bool declare = false;
 void addVar(char *s);
 int findVar(char *s);
 void freeVar(struct variableList *v);
-void appendString(char *newString);
 void storeUserVar(char * newString);
+void appendString(char * newString);
+struct funcList* findFunc(char *s);
+void addFunc(char *s, int label);
+void appendFuncString(char * newString);
+
 
 struct variableList *first;
 struct variableList *iter;
-int varCounter;
+int varCounter = 0;
+int localVarCounter = 0;
 char * printString;
 char inlineTemp[500];
+int scope = 0;
+
+char * funcString;
+char * startFuncString;
+char * finalFuncString;
+char functionTemp[500];
+struct variableList *localFirst;
+struct variableList *localIter;
+
+struct funcList *funcFirst;
+struct funcList *funcIter;
+
+int params = 0;
+int args = 0;
 
 int ex(nodeType *p, int breakTo, int contTo) {
     int lblx, lbly, lbl1, lbl2, lblCont;
     int breakArg, contArg;
 
-    if (!p) {
-        // freeVar(first);
-        
+    if (!p) {     
         return 0;
     }
     if (breakTo >= 0 || contTo >=0){
@@ -38,11 +56,24 @@ int ex(nodeType *p, int breakTo, int contTo) {
     }
     if (noVar){
         asprintf(&printString, "");
+        asprintf(&funcString, "");
+        asprintf(&startFuncString, "");
+        asprintf(&finalFuncString, "");
         first = (struct variableList *)malloc(sizeof(struct variableList));
         first->pos = 0;
         first->var = "first";
         first->next = NULL;
         iter = first;
+        localFirst = (struct variableList *)malloc(sizeof(struct variableList));
+        localFirst->pos = 0;
+        localFirst->var = "first";
+        localFirst->next = NULL;
+        localIter = localFirst;
+        funcFirst = (struct funcList *)malloc(sizeof(struct funcList));
+        funcFirst->pos = 0;
+        funcFirst->var = "first";
+        funcFirst->next = NULL;
+        funcIter = funcFirst;
         noVar = false;
     }
     switch(p->type) {
@@ -59,35 +90,132 @@ int ex(nodeType *p, int breakTo, int contTo) {
             appendString(inlineTemp);
             break;
         case typeId:
+            // printf("here\n");
+            //MUST ADAPT FOR GLOBAL VS LOCAL
+
+            if (declare){
+                params++;     
+                if(findVar(p->id.i) == -1){
+                    addVar(p->id.i);
+                    localVarCounter--;
+                }   
+            }else{
+                int index1 = findVar(p->id.i);
+                if(scope == 0) sprintf(inlineTemp, "\tpush\tsb[%d]\n", index1);
+                else sprintf(inlineTemp, "\tpush\tfp[%d]\n", index1);
+                appendString(inlineTemp); 
+            }
+            break;
+        case typeFuncId:
             //MUST ADAPT FOR GLOBAL VS LOCAL        
-            {int index1 = findVar(p->id.i);
-            sprintf(inlineTemp, "\tpush\tsb[%d]\n", index1);
-            appendString(inlineTemp);} 
+            {struct funcList* funct = findFunc(p->fid.i);
+            if(args == funct->params){
+                sprintf(inlineTemp, "\tcall\tL%03d, %d\n", funct->pos, funct->params);
+                appendString(inlineTemp);} 
+            }
+            args = 0;
             break;
         case typeOpr:
             switch(p->opr.oper) {
-                case ARRAY:
-                    {int index2 = varCounter;
-                    // printf("%d\n", varCounter);
-                    addVar(p->opr.op[0]->id.i);
-                    // sprintf(inlineTemp, "\tpop\tsb[%d]\n", index2);
-                    // appendString(inlineTemp);
-                    varCounter += p->opr.op[1]->conInt.value;}
-                    // printf("%d\n", varCounter);
-                    break;
-                case INITARRAY:
-                    {int index2 = varCounter;
-                    addVar(p->opr.op[0]->id.i);
-                    varCounter += p->opr.op[1]->conInt.value;
-                    int valueInt = p->opr.op[2]->conInt.value;
-                    int incr = varCounter;
-                    sprintf(inlineTemp, "\tpush\t%d\n\tpop\tin\nL%03d:\n\tpush\tin\n\tpush\t1\n\tsub\n\tpop\tin\n\tpush\t%d\n\tpop\tsb[in]\n\tpush\tin\n\tpush\t%d\n", incr, lbl1 = lbl++, valueInt,index2);
-                    appendString(inlineTemp);
+                case CALL:
+                    args = 0;
+                    ex(p->opr.op[1], breakArg, contArg);
+                    ex(p->opr.op[0], breakArg, contArg);
 
+                    break;
+                case FUNCNOPAR:
+                    if(scope == 0){
+                        sprintf(startFuncString, "L%03d:\n", lblx = lbl++);
+                        if(findVar(p->opr.op[0]->id.i) == -1 && findFunc(p->opr.op[0]->id.i) == NULL){
+                            scope++;
+                            addFunc(p->opr.op[0]->id.i,lblx);
+                            localVarCounter = 0;
+                            ex(p->opr.op[1], breakArg, contArg);
+                            sprintf(inlineTemp, "\tret\n");
+                            appendString(inlineTemp);
+                            appendFuncString(startFuncString);
+                            sprintf(inlineTemp, "\tpush\t%d\n\tpush\tsp\n\tadd\n\tpop\tsp\n",localVarCounter);
+                            appendFuncString(inlineTemp);
+                            appendFuncString(funcString);
+                            scope--;
+                            params = 0;
+                        }
+                    }
+                    break;
+                case FUNC:
+                    if(scope == 0){
+                        localVarCounter = -4;
+                        sprintf(startFuncString, "L%03d:\n", lblx = lbl++);
+                        if(findVar(p->opr.op[0]->id.i) == -1 && findFunc(p->opr.op[0]->id.i) == NULL){
+                            scope++;
+                            declare = true;
+                            ex(p->opr.op[1], breakArg, contArg);
+                            declare = false;
+                            addFunc(p->opr.op[0]->id.i,lblx);
+                            localVarCounter = 0;
+                            ex(p->opr.op[2], breakArg, contArg);
+                            sprintf(inlineTemp, "\tret\n");
+                            appendString(inlineTemp);
+                            appendFuncString(startFuncString);
+                            sprintf(inlineTemp, "\tpush\t%d\n\tpush\tsp\n\tadd\n\tpop\tsp\n",localVarCounter);
+                            appendFuncString(inlineTemp);
+                            appendFuncString(funcString);
+                            free(funcString);
+                            asprintf(&funcString, "");
+
+                            scope--;
+                            params = 0;
+                        }
+                    }
+                    break;
+                case ARG:
+                    args++;
+                    ex(p->opr.op[0], breakArg, contArg);
+                    break;
+
+                case ARRAY:
+                    if(scope == 0){
+                        int index2 = varCounter;
+                        addVar(p->opr.op[0]->id.i);
+                        varCounter += p->opr.op[1]->conInt.value;
+                    }else{
+                        int index2 = localVarCounter;
+                        addVar(p->opr.op[0]->id.i);
+                        localVarCounter += p->opr.op[1]->conInt.value;
+                    }
+                    break;
+
+                case INITARRAY:
+                    {int index2;
+                    int valueInt;
+                    int incr;
+                    if(scope == 0){
+                        index2 = varCounter;
+                        addVar(p->opr.op[0]->id.i);
+                        varCounter += p->opr.op[1]->conInt.value;
+                        valueInt = p->opr.op[2]->conInt.value;
+                        incr = varCounter;
+
+                    }else{
+                        index2 = localVarCounter;
+                        addVar(p->opr.op[0]->id.i);
+                        localVarCounter += p->opr.op[1]->conInt.value;
+                        valueInt = p->opr.op[2]->conInt.value;
+                        incr = localVarCounter;
+                    }
+                    sprintf(inlineTemp, "\tpush\t%d\n\tpop\tin\nL%03d:\n\tpush\tin\n\tpush\t1\n\tsub\n\tpop\tin\n\tpush\t%d\n", incr, lbl1 = lbl++, valueInt);
+                    appendString(inlineTemp);
+                    if(scope == 0){
+                        sprintf(inlineTemp,  "\tpop\tsb[in]\n\tpush\tin\n\tpush\t%d\n", index2);
+                        appendString(inlineTemp);
+                    }else{
+                        sprintf(inlineTemp,  "\tpop\tfp[in]\n\tpush\tin\n\tpush\t%d\n", index2);
+                        appendString(inlineTemp);
+                    }
                     sprintf(inlineTemp, "\tcompgt\n\tj1\tL%03d\n", lbl1);
                     appendString(inlineTemp);
-
                     }
+                    
                     break;
                 case GETARRAY:
                     ex(p->opr.op[1], breakArg, contArg);
@@ -216,21 +344,24 @@ int ex(nodeType *p, int breakTo, int contTo) {
                 case '=': 
                     //Fix Variable to string      
                     ex(p->opr.op[1], breakArg, contArg);
-                    int index3 = varCounter;
-                    // printf("the var counter: %d\n", varCounter);
-                    // printf("looking for: %s\n", p->opr.op[0]->id.i);
+                    int index3 = (scope == 0 ? varCounter : localVarCounter);
                     int temp = findVar(p->opr.op[0]->id.i);
-                    // printf("temp: %d\n", temp);
                     if(temp == -1){
                         addVar(p->opr.op[0]->id.i);
-                        varCounter++;
+                        if(scope == 0) varCounter++;
+                        else localVarCounter++;
                     }else{
                         index3 = temp;
                     }
-                    sprintf(inlineTemp, "\tpop\tsb[%d]\n", index3);
+                    if(scope == 0) sprintf(inlineTemp, "\tpop\tsb[%d]\n", index3);
+                    else sprintf(inlineTemp, "\tpop\tfp[%d]\n", index3);
                     appendString(inlineTemp);
                     
                     break;
+                // case ';':
+                //     ex(p->opr.op[0], breakArg, contArg);
+                //     ex(p->opr.op[1], breakArg, contArg);
+                //     break;
                 case UMINUS:    
                     ex(p->opr.op[0], breakArg, contArg);
                     sprintf(inlineTemp, "\tneg\n");
@@ -269,53 +400,104 @@ int ex(nodeType *p, int breakTo, int contTo) {
 
 void addVar(char *s) {
     struct variableList *temp = (struct variableList *)malloc(sizeof(struct variableList));
-    temp->pos = varCounter;
-    // printf("newPos = %d\n", temp->pos);
     temp->var = s;
-    iter->next = temp;
-    iter = temp;
-    iter->next = NULL; 
+    if(scope == 0){
+        temp->pos = varCounter;
+        iter->next = temp;
+        iter = temp;
+        iter->next = NULL;  
+    }else{
+        temp->pos = localVarCounter;
+        localIter->next = temp;
+        localIter = temp;
+        localIter->next = NULL; 
+    }
+    
 }
 
 int findVar(char *s) {
-    if(first->next != NULL){
-        struct variableList *temp = first->next; 
+    struct variableList *temp;
+    if(first->next != NULL && scope == 0){
+        
+        temp = first->next; 
         do{
             if(!strcmp (temp->var,s)){
                 return temp->pos;
             }
-            // }else if (temp->next != NULL){
-            //     printf("looping temp\n");
-            //     temp = temp->next;
-            // }
+        } while((temp = temp->next) != NULL);
+    }else if (localFirst->next != NULL){
+        temp = localFirst->next; 
+        do{
+            if(!strcmp (temp->var,s)){
+                return temp->pos;
+            }
         } while((temp = temp->next) != NULL);
     }
     return -1;
 
 }
+
+void addFunc(char *s, int label) {    
+    struct funcList *funcTemp = (struct funcList *)malloc(sizeof(struct funcList));
+    funcTemp->pos = label;
+    funcTemp->var = s;
+    funcTemp->params = params;
+    funcIter->next = funcTemp;
+    funcIter = funcTemp;
+    funcIter->next = NULL;
+}
+
+struct funcList* findFunc(char *s) {
+    if(funcFirst->next != NULL){
+        struct funcList *temp = funcFirst->next; 
+        do{
+            if(!strcmp (temp->var,s)){
+                return temp;
+            }
+
+        } while((temp = temp->next) != NULL);
+    }
+    return NULL;
+
+}
+
 void freeVar(struct variableList *v) {
     while(v->next != NULL){
         freeVar(v->next);
     }
     free(v);
 }
-
+void appendFuncString(char * newString){
+    char * temp;
+    asprintf(&temp, "%s%s", finalFuncString, newString);
+    free(finalFuncString);
+    finalFuncString = temp;   
+}
 void appendString(char * newString){
     char * temp;
-    asprintf(&temp, "%s%s", printString, newString);
-    free(printString);
-    printString = temp; 
+    if(scope == 0){
+        asprintf(&temp, "%s%s", printString, newString);
+        free(printString);
+        printString = temp;
+    }else{
+        asprintf(&temp, "%s%s", funcString, newString);
+        free(funcString);
+        funcString = temp;
+    }    
 }
+
 void storeUserVar(char * newString){
-    int index2 = varCounter;
+    int index2 = (scope == 0 ? varCounter : localVarCounter);
     int tempVar = findVar(newString);
     if(tempVar == -1){
         addVar(newString);
-        varCounter++;
+        if(scope == 0) varCounter++;
+        else localVarCounter++;
     }else{
         index2 = tempVar;
     }
-    sprintf(inlineTemp, "\tpop\tsb[%d]\n", index2);
+    if(scope == 0) sprintf(inlineTemp, "\tpop\tsb[%d]\n", index2);
+    else sprintf(inlineTemp, "\tpop\tfp[%d]\n", index2);
     appendString(inlineTemp);
 }
 
@@ -323,5 +505,6 @@ void storeUserVar(char * newString){
 void printProg(){
     printf("\tpush\t%d\n",varCounter);
     printf("\tpop\tsp\n");
-    printf("%s", printString);    
+    printf("%s", printString);  
+    printf("%s", finalFuncString);  
 }
