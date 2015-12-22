@@ -129,6 +129,11 @@ int ex(nodeType *p, int breakTo, int contTo) {
                     ex(p->opr.op[0], breakArg, contArg);
 
                     break;
+                case CALLNOARG:
+                    args = 0;
+                    ex(p->opr.op[0], breakArg, contArg);
+
+                    break;
                 case FUNCNOPAR:
                     if(scope == 0){
                         sprintf(startFuncString, "L%03d:\n", lblx = lbl++);
@@ -143,6 +148,8 @@ int ex(nodeType *p, int breakTo, int contTo) {
                             sprintf(inlineTemp, "\tpush\t%d\n\tpush\tsp\n\tadd\n\tpop\tsp\n",localVarCounter);
                             appendFuncString(inlineTemp);
                             appendFuncString(funcString);
+                            free(funcString);
+                            asprintf(&funcString, "");
                             freeVar(localFirst);
                             localFirst = (struct variableList *)malloc(sizeof(struct variableList));
                             localFirst->pos = 0;
@@ -188,6 +195,12 @@ int ex(nodeType *p, int breakTo, int contTo) {
                 case ARG:
                     args++;
                     ex(p->opr.op[0], breakArg, contArg);
+                    break;
+                case ARGS:
+                    ex(p->opr.op[0], breakArg, contArg);
+                    args++;
+                    ex(p->opr.op[1], breakArg, contArg);
+                    
                     break;
 
                 case ARRAY:
@@ -545,7 +558,7 @@ void printProg(){
     printf("\tpush\t%d\n",varCounter);
     printf("\tpop\tsp\n");
     printf("%s", printString); 
-    printf("end\n"); 
+    printf("\tend\n"); 
     printf("%s", finalFuncString);
 
 }

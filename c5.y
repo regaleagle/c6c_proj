@@ -37,8 +37,8 @@ int sym[26];                    /* symbol table */
 %token <string> GLOBVARIABLE
 %token <sIndex> CHAR
 %token <string> STRING
-%token FOR WHILE IF BREAK CONT DO GETI GETC GETS FUNCNOPAR FUNC ENDFUNC PARAM CALLPARAM
-%token PUTI PUTI_ PUTC PUTS PUTS_ ARRAY INITARRAY GETARRAY ASSIGNARRAY CALL ARG
+%token FOR WHILE IF BREAK CONT DO GETI GETC GETS FUNCNOPAR FUNC ARGS CALLNOARG
+%token PUTI PUTI_ PUTC PUTS PUTS_ ARRAY INITARRAY GETARRAY ASSIGNARRAY CALL ARG 
 %nonassoc IFX
 %nonassoc ELSE
 // %nonassoc CA
@@ -69,6 +69,7 @@ function_list:
 function:
           VARIABLE '('')' '{'stmt_list'}'           { $$ = opr(FUNCNOPAR, 2, id($1), $5);}
         | VARIABLE '(' arglist ')''{' stmt_list'}'   { $$ = opr(FUNC, 3, id($1), $3, $6);}
+        ;
 
 stmt:
           ';'                                       { $$ = opr(';', 2, NULL, NULL); }
@@ -106,7 +107,7 @@ expr:
         | STRING                    {  $$ = conStr($1); }
         | VARIABLE                  {  $$ = id($1); }
         | VARIABLE '('arglist')'   { $$ = opr(CALL, 2, fid($1), $3);}
-        | VARIABLE '('')'           { $$ = fid($1);}
+        | VARIABLE '('')'           { $$ = opr(CALLNOARG, 1, fid($1));}
         | VARIABLE '['expr']'   { $$ = opr(GETARRAY, 2, id($1), $3);}
         | '-' expr %prec UMINUS { $$ = opr(UMINUS, 1, $2); }
         | expr '+' expr         { $$ = opr('+', 2, $1, $3); }
@@ -126,7 +127,7 @@ expr:
         ;
 arglist:
          expr                   { $$ = opr(ARG, 1, $1); }
-        | arglist ','expr       { $$ = opr(';', 2, $1, $3);}
+        | arglist ','expr       { $$ = opr(ARGS, 2, $1, $3);}
 
 %%
 
