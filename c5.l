@@ -68,6 +68,10 @@ void yyerror(char *);
                     yylval.string = strdup(yytext);
                     return VARIABLE;
                 }
+[@][a-zA-Z][a-zA-Z0-9]*        {   
+                    yylval.string = strdup(yytext);
+                    return VARIABLE;
+                }
 
 \/\/.*\n	;	/* skip comments */
 

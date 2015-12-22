@@ -26,6 +26,8 @@ int localVarCounter = 0;
 char * printString;
 char inlineTemp[500];
 int scope = 0;
+int tempScope = 0;
+
 
 char * funcString;
 char * startFuncString;
@@ -91,7 +93,8 @@ int ex(nodeType *p, int breakTo, int contTo) {
             break;
         case typeId:
             // printf("here\n");
-            //MUST ADAPT FOR GLOBAL VS LOCAL
+            //memmove(yytext, yytext+1, strlen(yytext));
+            //MUST ADAPT FOR GLOBAL VS LOCAL                
 
             if (declare){
                 params++;     
@@ -100,14 +103,17 @@ int ex(nodeType *p, int breakTo, int contTo) {
                     localVarCounter--;
                 }   
             }else{
+                tempScope = scope;
+                if(p->id.i[0] == '@') {scope = 0;memmove(p->id.i, p->id.i+1, strlen(p->id.i));}
                 int index1 = findVar(p->id.i);
                 if(scope == 0) sprintf(inlineTemp, "\tpush\tsb[%d]\n", index1);
                 else sprintf(inlineTemp, "\tpush\tfp[%d]\n", index1);
+                scope = tempScope;
                 appendString(inlineTemp); 
+                
             }
             break;
-        case typeFuncId:
-            //MUST ADAPT FOR GLOBAL VS LOCAL        
+        case typeFuncId:        
             {struct funcList* funct = findFunc(p->fid.i);
             if(args == funct->params){
                 sprintf(inlineTemp, "\tcall\tL%03d, %d\n", funct->pos, funct->params);
@@ -137,6 +143,12 @@ int ex(nodeType *p, int breakTo, int contTo) {
                             sprintf(inlineTemp, "\tpush\t%d\n\tpush\tsp\n\tadd\n\tpop\tsp\n",localVarCounter);
                             appendFuncString(inlineTemp);
                             appendFuncString(funcString);
+                            freeVar(localFirst);
+                            localFirst = (struct variableList *)malloc(sizeof(struct variableList));
+                            localFirst->pos = 0;
+                            localFirst->var = "first";
+                            localFirst->next = NULL;
+                            localIter = localFirst;
                             scope--;
                             params = 0;
                         }
@@ -162,7 +174,12 @@ int ex(nodeType *p, int breakTo, int contTo) {
                             appendFuncString(funcString);
                             free(funcString);
                             asprintf(&funcString, "");
-
+                            freeVar(localFirst);
+                            localFirst = (struct variableList *)malloc(sizeof(struct variableList));
+                            localFirst->pos = 0;
+                            localFirst->var = "first";
+                            localFirst->next = NULL;
+                            localIter = localFirst;
                             scope--;
                             params = 0;
                         }
@@ -219,18 +236,33 @@ int ex(nodeType *p, int breakTo, int contTo) {
                     break;
                 case GETARRAY:
                     ex(p->opr.op[1], breakArg, contArg);
+                    tempScope = scope;
+                    if(p->opr.op[0]->id.i[0] == '@') {scope = 0;memmove(p->opr.op[0]->id.i, p->opr.op[0]->id.i+1, strlen(p->opr.op[0]->id.i));}
                     int arrAdd = findVar(p->opr.op[0]->id.i);
-                    sprintf(inlineTemp, "\tpush\t%d\n\tadd\n\tpop\tin\n\tpush\tsb[in]\n", arrAdd);
+                    if(scope == 0)sprintf(inlineTemp, "\tpush\t%d\n\tadd\n\tpop\tin\n\tpush\tsb[in]\n", arrAdd);
+                    else sprintf(inlineTemp, "\tpush\t%d\n\tadd\n\tpop\tin\n\tpush\tfp[in]\n", arrAdd);
+                    scope = tempScope;
                     appendString(inlineTemp);
+                    
                     break;
                 case ASSIGNARRAY:
-                    {int arrAdd = findVar(p->opr.op[0]->id.i);
+                    {
                     ex(p->opr.op[1], breakArg, contArg);
+                    tempScope = scope;
+                    int tempScope2 = tempScope;
+                    if(p->opr.op[0]->id.i[0] == '@') {scope = 0; tempScope2 =0; memmove(p->opr.op[0]->id.i, p->opr.op[0]->id.i+1, strlen(p->opr.op[0]->id.i));}
+                    int arrAdd = findVar(p->opr.op[0]->id.i);
                     sprintf(inlineTemp, "\tpush\t%d\n\tadd\n\tpop\tin\n", arrAdd);
+                    if(scope != tempScope) scope = tempScope;
                     appendString(inlineTemp);
-                    ex(p->opr.op[2], breakArg, contArg);   
-                    sprintf(inlineTemp, "\tpop\tsb[in]\n");
-                    appendString(inlineTemp);}            
+                    ex(p->opr.op[2], breakArg, contArg);
+                    scope = tempScope2;   
+                    if(scope == 0)sprintf(inlineTemp, "\tpop\tsb[in]\n");
+                    else sprintf(inlineTemp, "\tpop\tfp[in]\n");
+                    scope = tempScope;
+                    appendString(inlineTemp); 
+                    }
+
                     break;
             	case FOR:
             		ex(p->opr.op[0], breakArg, contArg);
@@ -344,9 +376,11 @@ int ex(nodeType *p, int breakTo, int contTo) {
                 case '=': 
                     //Fix Variable to string      
                     ex(p->opr.op[1], breakArg, contArg);
+                    tempScope = scope;
+                    if(p->opr.op[0]->id.i[0] == '@') {scope = 0;memmove(p->opr.op[0]->id.i, p->opr.op[0]->id.i+1, strlen(p->opr.op[0]->id.i));}
                     int index3 = (scope == 0 ? varCounter : localVarCounter);
                     int temp = findVar(p->opr.op[0]->id.i);
-                    if(temp == -1){
+                    if(temp == -1 && tempScope == scope){
                         addVar(p->opr.op[0]->id.i);
                         if(scope == 0) varCounter++;
                         else localVarCounter++;
@@ -355,6 +389,7 @@ int ex(nodeType *p, int breakTo, int contTo) {
                     }
                     if(scope == 0) sprintf(inlineTemp, "\tpop\tsb[%d]\n", index3);
                     else sprintf(inlineTemp, "\tpop\tfp[%d]\n", index3);
+                    scope = tempScope;
                     appendString(inlineTemp);
                     
                     break;
@@ -462,7 +497,7 @@ struct funcList* findFunc(char *s) {
 }
 
 void freeVar(struct variableList *v) {
-    while(v->next != NULL){
+    if(v->next != NULL){
         freeVar(v->next);
     }
     free(v);
@@ -487,9 +522,11 @@ void appendString(char * newString){
 }
 
 void storeUserVar(char * newString){
+    tempScope = scope;
+    if(newString[0] == '@') {scope = 0;memmove(newString, newString+1, strlen(newString));}
     int index2 = (scope == 0 ? varCounter : localVarCounter);
     int tempVar = findVar(newString);
-    if(tempVar == -1){
+    if(tempVar == -1 && tempScope == scope){
         addVar(newString);
         if(scope == 0) varCounter++;
         else localVarCounter++;
@@ -498,13 +535,17 @@ void storeUserVar(char * newString){
     }
     if(scope == 0) sprintf(inlineTemp, "\tpop\tsb[%d]\n", index2);
     else sprintf(inlineTemp, "\tpop\tfp[%d]\n", index2);
+    scope = tempScope;
     appendString(inlineTemp);
+    
 }
 
 
 void printProg(){
     printf("\tpush\t%d\n",varCounter);
     printf("\tpop\tsp\n");
-    printf("%s", printString);  
-    printf("%s", finalFuncString);  
+    printf("%s", printString); 
+    printf("end\n"); 
+    printf("%s", finalFuncString);
+
 }

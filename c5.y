@@ -34,6 +34,7 @@ int sym[26];                    /* symbol table */
 
 %token <iValue> INTEGER
 %token <string> VARIABLE
+%token <string> GLOBVARIABLE
 %token <sIndex> CHAR
 %token <string> STRING
 %token FOR WHILE IF BREAK CONT DO GETI GETC GETS FUNCNOPAR FUNC ENDFUNC PARAM CALLPARAM
