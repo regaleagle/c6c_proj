@@ -226,6 +226,38 @@ int ex(nodeType *p, int breakTo, int contTo) {
                         localVarCounter += p->opr.op[1]->conInt.value;
                     }
                     break;
+                 case INITSTRING:
+                    {int index2;
+                    int valueInt;
+                    int incr;
+                    if(scope == 0){
+                        index2 = varCounter;
+                        addVar(p->opr.op[0]->id.i);
+                        varCounter += p->opr.op[1]->conInt.value;
+                        valueInt = p->opr.op[2]->conInt.value;
+                        incr = varCounter;
+
+                    }else{
+                        index2 = localVarCounter;
+                        addVar(p->opr.op[0]->id.i);
+                        localVarCounter += p->opr.op[1]->conInt.value;
+                        valueInt = p->opr.op[2]->conInt.value;
+                        incr = localVarCounter;
+                    }
+                    sprintf(inlineTemp, "\tpush\t%d\n\tpop\tin\nL%03d:\n\tpush\tin\n\tpush\t1\n\tsub\n\tpop\tin\n\tpush\t%d\n", incr, lbl1 = lbl++, valueInt);
+                    appendString(inlineTemp);
+                    if(scope == 0){
+                        sprintf(inlineTemp,  "\tpop\tsb[in]\n\tpush\tin\n\tpush\t%d\n", index2);
+                        appendString(inlineTemp);
+                    }else{
+                        sprintf(inlineTemp,  "\tpop\tfp[in]\n\tpush\tin\n\tpush\t%d\n", index2);
+                        appendString(inlineTemp);
+                    }
+                    sprintf(inlineTemp, "\tcompgt\n\tj1\tL%03d\n", lbl1);
+                    appendString(inlineTemp);
+                    }
+                    
+                    break;
 
                 case INITARRAY:
                     {int index2;
@@ -260,9 +292,9 @@ int ex(nodeType *p, int breakTo, int contTo) {
                     
                     break;
                 case GETARRAY:
+                    ex(p->opr.op[1], breakArg, contArg);
                     tempScope = scope;
                     if(p->opr.op[0]->id.i[0] == '@') {scope = 0;memmove(p->opr.op[0]->id.i, p->opr.op[0]->id.i+1, strlen(p->opr.op[0]->id.i));}
-                    ex(p->opr.op[1], breakArg, contArg);
                     int arrAdd = findVar(p->opr.op[0]->id.i);
                     if(scope == 0)sprintf(inlineTemp, "\tpush\t%d\n\tadd\n\tpop\tin\n\tpush\tsb[in]\n", arrAdd);
                     else sprintf(inlineTemp, "\tpush\t%d\n\tadd\n\tpop\tin\n\tpush\tfp[in]\n", arrAdd);
