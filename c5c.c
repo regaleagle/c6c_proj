@@ -9,6 +9,7 @@
 static int lbl;
 static bool noVar = true;
 static bool declare = false;
+static bool checkstring = false;
 void addVar(char *s);
 int findVar(char *s);
 void freeVar(struct variableList *v);
@@ -35,6 +36,9 @@ char * finalFuncString;
 char functionTemp[500];
 struct variableList *localFirst;
 struct variableList *localIter;
+
+struct variableList *stringFirst;
+struct variableList *stringIter;
 
 struct funcList *funcFirst;
 struct funcList *funcIter;
@@ -76,6 +80,11 @@ int ex(nodeType *p, int breakTo, int contTo) {
         funcFirst->var = "first";
         funcFirst->next = NULL;
         funcIter = funcFirst;
+        stringFirst = (struct variableList *)malloc(sizeof(struct variableList));
+        stringFirst->pos = 0;
+        stringFirst->var = "first";
+        stringFirst->next = NULL;
+        stringIter = stringFirst;
         noVar = false;
     }
     switch(p->type) {
@@ -92,10 +101,16 @@ int ex(nodeType *p, int breakTo, int contTo) {
             appendString(inlineTemp);
             break;
         case typeId:
-            // printf("here\n");
-            //memmove(yytext, yytext+1, strlen(yytext));
-            //MUST ADAPT FOR GLOBAL VS LOCAL                
-
+            {
+            struct variableList *temp;
+            if (stringFirst->next != NULL){
+                temp = stringFirst->next; 
+                do{
+                    if(!strcmp (temp->var,p->id.i)){
+                        checkstring = true;
+                    }
+                } while((temp = temp->next) != NULL);
+            }
             if (declare){
                 params++;     
                 if(findVar(p->id.i) == -1){
@@ -106,11 +121,21 @@ int ex(nodeType *p, int breakTo, int contTo) {
                 tempScope = scope;
                 if(p->id.i[0] == '@') {scope = 0;memmove(p->id.i, p->id.i+1, strlen(p->id.i));}
                 int index1 = findVar(p->id.i);
-                if(scope == 0) sprintf(inlineTemp, "\tpush\tsb[%d]\n", index1);
-                else sprintf(inlineTemp, "\tpush\tfp[%d]\n", index1);
+                if(checkstring){
+                    sprintf(inlineTemp, "\tpush\t%d\n\tpop\tin\nL%03d:\n",index1, lbl1 = lbl++);
+                    appendString(inlineTemp);
+                    lbl2 = lbl++;
+                    if(scope == 0) sprintf(inlineTemp, "\tpush\tsb[in]\n\tj0\tL%03d\n\tpush\tsb[in]\n\tputc_\n\tpush\tin\n\tpush\t1\n\tadd\n\tpop\tin\n\tjmp\tL%03d\nL%03d:\n",lbl2, lbl1,lbl2);
+                    else sprintf(inlineTemp, "\tpush\tfp[in]\n\tj0\tL%03d\n\tpush\tfp[in]\n\tputc_\n\tpush\tin\n\tpush\t1\n\tadd\n\tpop\tin\n\tjmp\tL%03d\nL%03d:\n",lbl2, lbl1,lbl2);
+                }else{
+                    if(scope == 0) sprintf(inlineTemp, "\tpush\tsb[%d]\n", index1);
+                    else sprintf(inlineTemp, "\tpush\tfp[%d]\n", index1);
+                }
+                
                 scope = tempScope;
                 appendString(inlineTemp); 
                 
+            }
             }
             break;
         case typeFuncId:        
@@ -239,24 +264,23 @@ int ex(nodeType *p, int breakTo, int contTo) {
                     char * valueStr;
                     int incr;
                     if(scope == 0){
-                        // index2 = varCounter;
                         addVar(p->opr.op[0]->id.i);
                         incr = varCounter;
                         varCounter += p->opr.op[1]->conInt.value;
-                        // valueInt = p->opr.op[2]->conInt.value;
                         
 
                     }else{
-                        // index2 = localVarCounter;
                         addVar(p->opr.op[0]->id.i);
                         incr = localVarCounter;
-                        localVarCounter += p->opr.op[1]->conInt.value;
-                        // valueInt = p->opr.op[2]->conInt.value;
-                        
+                        localVarCounter += p->opr.op[1]->conInt.value;                 
                     }
+                    struct variableList *temp = (struct variableList *)malloc(sizeof(struct variableList));
+                    temp->var = p->opr.op[0]->id.i;
+                    temp->pos = 0;
+                    stringIter->next = temp;
+                    stringIter = temp;
+                    stringIter->next = NULL; 
                     valueStr = p->opr.op[2]->conStr.value;
-                    // sprintf(inlineTemp, "\tpush\t%d\n\tpop\tin\nL%03d:\n\tpush\tin\n\tpush\t1\n\tsub\n\tpop\tin\n\tpush\t%d\n", incr, lbl1 = lbl++, valueInt);
-                    // appendString(inlineTemp);
                     int i = 0;
                     for(i=0; i < strlen(valueStr); ++i){
                         if(scope == 0){
@@ -266,8 +290,6 @@ int ex(nodeType *p, int breakTo, int contTo) {
                             sprintf(inlineTemp,  "\tpush\t'%c'\n\tpop\tfp[%d]\n",valueStr[i],(incr + i));
                             appendString(inlineTemp);
                         }
-                        // sprintf(inlineTemp, "\tcompgt\n\tj1\tL%03d\n", lbl1);
-                        // appendString(inlineTemp);
                     }
                     if(scope == 0){
                             sprintf(inlineTemp,  "\tpush\t0\n\tpop\tsb[%d]\n",(incr + i));
@@ -443,12 +465,23 @@ int ex(nodeType *p, int breakTo, int contTo) {
                     break;
                 case PUTS:
                     ex(p->opr.op[0], breakArg, contArg);
-                    sprintf(inlineTemp, "\tputs\n");
-                    appendString(inlineTemp);
+                    if(!checkstring){
+                        sprintf(inlineTemp, "\tputs\n");
+                        appendString(inlineTemp);
+                    }
+                    else{
+                        sprintf(inlineTemp, "\tpush\t\" \"\n\tputs\n");
+                        appendString(inlineTemp);
+                    }
+                    checkstring = false;
+                    
                     break;
                 case PUTS_:
                     ex(p->opr.op[0], breakArg, contArg);
-                    sprintf(inlineTemp, "\tputs_\n");
+                    if(!checkstring){
+                        sprintf(inlineTemp, "\tputs_\n");
+                    }
+                    checkstring = false;
                     appendString(inlineTemp);
                     break;
                 case '=': 
@@ -471,10 +504,6 @@ int ex(nodeType *p, int breakTo, int contTo) {
                     appendString(inlineTemp);
                     
                     break;
-                // case ';':
-                //     ex(p->opr.op[0], breakArg, contArg);
-                //     ex(p->opr.op[1], breakArg, contArg);
-                //     break;
                 case UMINUS:    
                     ex(p->opr.op[0], breakArg, contArg);
                     sprintf(inlineTemp, "\tneg\n");
