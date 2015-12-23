@@ -37,7 +37,7 @@ int sym[26];                    /* symbol table */
 %token <string> GLOBVARIABLE
 %token <sIndex> CHAR
 %token <string> STRING
-%token FOR WHILE IF BREAK CONT DO GETI GETC GETS FUNCNOPAR FUNC ARGS CALLNOARG
+%token FOR WHILE IF BREAK CONT DO GETI GETC GETS FUNCNOPAR FUNC ARGS CALLNOARG INITSTRING
 %token PUTI PUTI_ PUTC PUTS PUTS_ ARRAY ARRAYS INITARRAY GETARRAY ASSIGNARRAY CALL ARG 
 %nonassoc IFX
 %nonassoc ELSE
@@ -77,8 +77,8 @@ stmt:
         | BREAK ';'                                 { $$ = opr(BREAK, 0);}
         | CONT ';'                                  { $$ = opr(CONT, 0);}
         | ARRAY array_list ';'                      {$$ = $2;}
-        // | ARRAY VARIABLE '['INTEGER']' ';'          { $$ = opr(ARRAY, 2, id($2), conInt($4));}
         | ARRAY VARIABLE '['INTEGER']' '=' INTEGER ';'  { $$ = opr(INITARRAY, 3, id($2), conInt($4), conInt($7));}
+        | ARRAY VARIABLE '['INTEGER']' '=' STRING ';'  { $$ = opr(INITSTRING, 3, id($2), conInt($4), conStr($7));}
         | VARIABLE '['expr']' '=' expr';'           { $$ = opr(ASSIGNARRAY, 3, id($1), $3, $6);}
         | PUTI '(' expr ')'';'                      { $$ = opr(PUTI, 1, $3); }
         | PUTI_ '(' expr ')'';'                     { $$ = opr(PUTI_, 1, $3); }

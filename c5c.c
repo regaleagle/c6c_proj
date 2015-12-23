@@ -197,9 +197,17 @@ int ex(nodeType *p, int breakTo, int contTo) {
                     ex(p->opr.op[0], breakArg, contArg);
                     break;
                 case ARGS:
-                    ex(p->opr.op[0], breakArg, contArg);
-                    args++;
-                    ex(p->opr.op[1], breakArg, contArg);
+                    if(declare){
+                        args++;
+                        ex(p->opr.op[1], breakArg, contArg);
+                        ex(p->opr.op[0], breakArg, contArg);
+                    }else{
+                        args++;
+                        ex(p->opr.op[0], breakArg, contArg);
+                        ex(p->opr.op[1], breakArg, contArg);
+                    }
+                    
+
                     
                     break;
                 case ARRAYS:
@@ -228,33 +236,46 @@ int ex(nodeType *p, int breakTo, int contTo) {
                     break;
                  case INITSTRING:
                     {int index2;
-                    int valueInt;
+                    char * valueStr;
                     int incr;
                     if(scope == 0){
-                        index2 = varCounter;
+                        // index2 = varCounter;
                         addVar(p->opr.op[0]->id.i);
-                        varCounter += p->opr.op[1]->conInt.value;
-                        valueInt = p->opr.op[2]->conInt.value;
                         incr = varCounter;
+                        varCounter += p->opr.op[1]->conInt.value;
+                        // valueInt = p->opr.op[2]->conInt.value;
+                        
 
                     }else{
-                        index2 = localVarCounter;
+                        // index2 = localVarCounter;
                         addVar(p->opr.op[0]->id.i);
-                        localVarCounter += p->opr.op[1]->conInt.value;
-                        valueInt = p->opr.op[2]->conInt.value;
                         incr = localVarCounter;
+                        localVarCounter += p->opr.op[1]->conInt.value;
+                        // valueInt = p->opr.op[2]->conInt.value;
+                        
                     }
-                    sprintf(inlineTemp, "\tpush\t%d\n\tpop\tin\nL%03d:\n\tpush\tin\n\tpush\t1\n\tsub\n\tpop\tin\n\tpush\t%d\n", incr, lbl1 = lbl++, valueInt);
-                    appendString(inlineTemp);
+                    valueStr = p->opr.op[2]->conStr.value;
+                    // sprintf(inlineTemp, "\tpush\t%d\n\tpop\tin\nL%03d:\n\tpush\tin\n\tpush\t1\n\tsub\n\tpop\tin\n\tpush\t%d\n", incr, lbl1 = lbl++, valueInt);
+                    // appendString(inlineTemp);
+                    int i = 0;
+                    for(i=0; i < strlen(valueStr); ++i){
+                        if(scope == 0){
+                            sprintf(inlineTemp,  "\tpush\t'%c'\n\tpop\tsb[%d]\n",valueStr[i],(incr + i));
+                            appendString(inlineTemp);
+                        }else{
+                            sprintf(inlineTemp,  "\tpush\t'%c'\n\tpop\tfp[%d]\n",valueStr[i],(incr + i));
+                            appendString(inlineTemp);
+                        }
+                        // sprintf(inlineTemp, "\tcompgt\n\tj1\tL%03d\n", lbl1);
+                        // appendString(inlineTemp);
+                    }
                     if(scope == 0){
-                        sprintf(inlineTemp,  "\tpop\tsb[in]\n\tpush\tin\n\tpush\t%d\n", index2);
-                        appendString(inlineTemp);
-                    }else{
-                        sprintf(inlineTemp,  "\tpop\tfp[in]\n\tpush\tin\n\tpush\t%d\n", index2);
-                        appendString(inlineTemp);
-                    }
-                    sprintf(inlineTemp, "\tcompgt\n\tj1\tL%03d\n", lbl1);
-                    appendString(inlineTemp);
+                            sprintf(inlineTemp,  "\tpush\t0\n\tpop\tsb[%d]\n",(incr + i));
+                            appendString(inlineTemp);
+                        }else{
+                            sprintf(inlineTemp,  "\tpush\t0\n\tpop\tfp[%d]\n",(incr + i));
+                            appendString(inlineTemp);
+                        }
                     }
                     
                     break;
