@@ -202,8 +202,20 @@ int ex(nodeType *p, int breakTo, int contTo) {
                     ex(p->opr.op[1], breakArg, contArg);
                     
                     break;
-
+                case ARRAYS:
+                    ex(p->opr.op[0], breakArg, contArg);
+                    if(scope == 0){
+                        int index2 = varCounter;
+                        addVar(p->opr.op[1]->id.i);
+                        varCounter += p->opr.op[2]->conInt.value;
+                    }else{
+                        int index2 = localVarCounter;
+                        addVar(p->opr.op[1]->id.i);
+                        localVarCounter += p->opr.op[2]->conInt.value;
+                    }
+                    break;
                 case ARRAY:
+
                     if(scope == 0){
                         int index2 = varCounter;
                         addVar(p->opr.op[0]->id.i);
@@ -248,9 +260,9 @@ int ex(nodeType *p, int breakTo, int contTo) {
                     
                     break;
                 case GETARRAY:
-                    ex(p->opr.op[1], breakArg, contArg);
                     tempScope = scope;
                     if(p->opr.op[0]->id.i[0] == '@') {scope = 0;memmove(p->opr.op[0]->id.i, p->opr.op[0]->id.i+1, strlen(p->opr.op[0]->id.i));}
+                    ex(p->opr.op[1], breakArg, contArg);
                     int arrAdd = findVar(p->opr.op[0]->id.i);
                     if(scope == 0)sprintf(inlineTemp, "\tpush\t%d\n\tadd\n\tpop\tin\n\tpush\tsb[in]\n", arrAdd);
                     else sprintf(inlineTemp, "\tpush\t%d\n\tadd\n\tpop\tin\n\tpush\tfp[in]\n", arrAdd);

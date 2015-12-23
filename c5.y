@@ -38,7 +38,7 @@ int sym[26];                    /* symbol table */
 %token <sIndex> CHAR
 %token <string> STRING
 %token FOR WHILE IF BREAK CONT DO GETI GETC GETS FUNCNOPAR FUNC ARGS CALLNOARG
-%token PUTI PUTI_ PUTC PUTS PUTS_ ARRAY INITARRAY GETARRAY ASSIGNARRAY CALL ARG 
+%token PUTI PUTI_ PUTC PUTS PUTS_ ARRAY ARRAYS INITARRAY GETARRAY ASSIGNARRAY CALL ARG 
 %nonassoc IFX
 %nonassoc ELSE
 // %nonassoc CA
@@ -52,7 +52,7 @@ int sym[26];                    /* symbol table */
 %nonassoc UMINUS
 
 
-%type <nPtr>  arglist stmt expr function stmt_list 
+%type <nPtr>  array_list arglist stmt expr function stmt_list 
 
 %%
 
@@ -76,7 +76,8 @@ stmt:
         | expr ';'                                  { $$ = $1; }
         | BREAK ';'                                 { $$ = opr(BREAK, 0);}
         | CONT ';'                                  { $$ = opr(CONT, 0);}
-        | ARRAY VARIABLE '['INTEGER']' ';'          { $$ = opr(ARRAY, 2, id($2), conInt($4));}
+        | ARRAY array_list ';'                      {$$ = $2;}
+        // | ARRAY VARIABLE '['INTEGER']' ';'          { $$ = opr(ARRAY, 2, id($2), conInt($4));}
         | ARRAY VARIABLE '['INTEGER']' '=' INTEGER ';'  { $$ = opr(INITARRAY, 3, id($2), conInt($4), conInt($7));}
         | VARIABLE '['expr']' '=' expr';'           { $$ = opr(ASSIGNARRAY, 3, id($1), $3, $6);}
         | PUTI '(' expr ')'';'                      { $$ = opr(PUTI, 1, $3); }
@@ -94,6 +95,11 @@ stmt:
         | IF '(' expr ')' stmt %prec IFX    { $$ = opr(IF, 2, $3, $5); }
         | IF '(' expr ')' stmt ELSE stmt    { $$ = opr(IF, 3, $3, $5, $7); }
         | '{' stmt_list '}'                 { $$ = $2; }
+        ;
+
+array_list:
+        VARIABLE '[' INTEGER ']'                    { $$ = opr(ARRAY, 2, id($1), conInt($3));}
+        | array_list ',' VARIABLE '[' INTEGER ']' { $$ = opr(ARRAYS, 3, $1, id($3), conInt($5));}
         ;
 
 stmt_list:
